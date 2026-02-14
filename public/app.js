@@ -1,122 +1,188 @@
-const searchInput = document.getElementById("agent-search");
-const searchButton = document.getElementById("search-btn");
-const registryBody = document.getElementById("registry-body");
-const registryCount = document.getElementById("registry-count");
-const registryEmpty = document.getElementById("registry-empty");
-const feedList = document.getElementById("feed-list");
-const feedLastUpdated = document.getElementById("feed-last-updated");
-const feedScroll = document.querySelector(".feed-scroll");
+const elements = {
+  searchInput: document.querySelector("#search-input"),
+  searchBtn: document.querySelector("#search-btn"),
+  searchStatus: document.querySelector("#search-status"),
+  agentList: document.querySelector("#agent-list"),
+  scorecard: document.querySelector("#scorecard"),
+  ticker: document.querySelector("#ticker"),
+  leaderboardBody: document.querySelector("#leaderboard-body"),
+  verifyOutput: document.querySelector("#verify-output"),
+  verifyAgentBtn: document.querySelector("#verify-agent"),
+  downloadReportBtn: document.querySelector("#download-report"),
+  auditNowBtn: document.querySelector("#audit-now")
+};
 
-function mapScoreToRating(score) {
-  if (score >= 0.9) return "AAA";
-  if (score >= 0.8) return "AA";
-  if (score >= 0.7) return "A";
-  if (score >= 0.6) return "BBB";
-  if (score >= 0.5) return "BB";
-  if (score >= 0.4) return "B";
-  if (score >= 0.3) return "C";
-  return "D";
-}
+let selectedAgent = null;
 
-function formatTime(iso) {
-  const date = new Date(iso);
-  return date.toLocaleString("en-GB", {
-    hour12: false,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit"
-  });
-}
-
-function renderRegistry(agents) {
-  registryBody.innerHTML = "";
-  registryCount.textContent = `${agents.length} entr${agents.length === 1 ? "y" : "ies"}`;
-  registryEmpty.classList.toggle("hidden", agents.length !== 0);
-
-  for (const agent of agents) {
-    const row = document.createElement("tr");
-    const rating = agent.rating || mapScoreToRating(agent.reliabilityScore);
-    row.innerHTML = `
-      <td>${agent.agentId}</td>
-      <td>${agent.name}</td>
-      <td>${agent.reliabilityScore.toFixed(2)}</td>
-      <td><span class="rating-chip">${rating}</span></td>
-      <td>${agent.lastAction}</td>
-    `;
-    registryBody.appendChild(row);
-  }
-}
-
-function renderEvents(events) {
-  feedList.innerHTML = "";
-  for (const event of events) {
-    const item = document.createElement("li");
-    item.innerHTML = `
-      <div class="event-line">
-        <strong>${event.agentId}</strong>
-        <span class="rating-chip">${event.rating || mapScoreToRating(event.score)}</span>
-        <span>${event.action}</span>
-      </div>
-      <div class="event-line event-time">${formatTime(event.timestamp)}</div>
-      <div>${event.note}</div>
-    `;
-    feedList.appendChild(item);
-  }
-  feedLastUpdated.textContent = `last sync ${formatTime(new Date().toISOString())}`;
-}
-
-async function loadAgents(query = "") {
-  const response = await fetch(`/api/agents?query=${encodeURIComponent(query)}`);
+async function api(path, options = {}) {
+  const response = await fetch(path, options);
+  const json = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error("Failed to load agents.");
+    throw new Error(json.error || "Request failed");
   }
-  const payload = await response.json();
-  renderRegistry(payload.agents || []);
+  return json.data;
 }
 
-async function loadEvents() {
-  const response = await fetch("/api/events");
-  if (!response.ok) {
-    throw new Error("Failed to load events.");
-  }
-  const payload = await response.json();
-  renderEvents(payload.events || []);
-}
-
-function smoothAutoScroll() {
-  if (!feedScroll || feedScroll.scrollHeight <= feedScroll.clientHeight) {
+function renderAgentList(agents) {
+  if (!agents.length) {
+    elements.agentList.innerHTML = `<div class="agent-card">No records found.</div>`;
     return;
   }
 
-  feedScroll.scrollTop += 1;
-  if (feedScroll.scrollTop + feedScroll.clientHeight >= feedScroll.scrollHeight) {
-    feedScroll.scrollTop = 0;
-  }
+  elements.agentList.innerHTML = agents
+    .map(
+      (agent) => `
+      <button class="agent-card" data-id="${agent.id}">
+        <div><strong>${agent.name}</strong></div>
+        <div>${agent.wallet_address}</div>
+        <div>Grade: ${agent.grade || "UNRATED"} | Fee: ${
+          agent.fee_multiplier ? Number(agent.fee_multiplier).toFixed(2) + "x" : "N/A"
+        }</div>
+      </button>
+    `
+    )
+    .join("");
+
+  document.querySelectorAll(".agent-card[data-id]").forEach((node) => {
+    node.addEventListener("click", async () => {
+      await loadAgent(node.dataset.id);
+    });
+  });
 }
 
-async function refreshAll() {
-  try {
-    await Promise.all([loadAgents(searchInput.value.trim()), loadEvents()]);
-  } catch (error) {
-    console.error(error);
+function renderScorecard(payload) {
+  const { agent, rating, metrics, credit_events: events } = payload;
+  selectedAgent = agent;
+  elements.downloadReportBtn.disabled = false;
+  elements.verifyAgentBtn.disabled = false;
+
+  if (!rating || !metrics) {
+    elements.scorecard.classList.add("empty");
+    elements.scorecard.textContent = "No rating data available yet.";
+    return;
   }
+
+  elements.scorecard.classList.remove("empty");
+  elements.scorecard.textContent = `
+AGENT: ${agent.name}
+WALLET: ${agent.wallet_address}
+GRADE: ${rating.grade}
+OUTLOOK: ${rating.outlook}
+FEE MULTIPLIER: ${Number(rating.fee_multiplier).toFixed(2)}x
+SCORE: ${Number(rating.score).toFixed(2)}
+
+SOLVENCY (x402_latency_ms): ${metrics.x402_latency_ms}
+EXECUTION INTEGRITY (strategy_drift_index): ${Number(metrics.strategy_drift_index).toFixed(4)}
+PAYMENT DEFAULTED: ${metrics.payment_defaulted ? "YES" : "NO"}
+
+PERMANENT RECORD:
+${events.length ? events.map((item) => `- ${item.event_type} | ${item.reason}`).join("\n") : "- CLEAN"}
+  `.trim();
 }
 
-searchButton.addEventListener("click", () => {
-  loadAgents(searchInput.value.trim()).catch((error) => console.error(error));
+function renderTicker(events) {
+  const feed = events.length
+    ? events
+        .map(
+          (event) =>
+            `[${event.event_type}] ${event.agent_name}: ${event.from_grade || "N/A"} -> ${event.to_grade || "N/A"} (${event.reason})`
+        )
+        .join("  ||  ")
+    : "No sovereign actions recorded.";
+
+  elements.ticker.innerHTML = `${feed}  ||  ${feed}`;
+}
+
+function renderLeaderboard(rows) {
+  elements.leaderboardBody.innerHTML = rows
+    .map(
+      (row, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${row.name}</td>
+        <td>${row.grade}</td>
+        <td>${Number(row.fee_multiplier).toFixed(2)}x</td>
+        <td>${Number(row.score).toFixed(2)}</td>
+      </tr>
+    `
+    )
+    .join("");
+}
+
+async function searchAgents() {
+  const query = elements.searchInput.value.trim();
+  elements.searchStatus.textContent = "Retrieving case files...";
+  const agents = await api(`/api/v1/agents?query=${encodeURIComponent(query)}`);
+  renderAgentList(agents);
+  elements.searchStatus.textContent = `Retrieved ${agents.length} case file(s).`;
+}
+
+async function loadAgent(id) {
+  const payload = await api(`/api/v1/agents/${encodeURIComponent(id)}`);
+  renderScorecard(payload);
+}
+
+async function refreshTickerAndBoard() {
+  const [feed, board] = await Promise.all([api("/api/v1/feed"), api("/api/v1/leaderboard")]);
+  renderTicker(feed);
+  renderLeaderboard(board);
+}
+
+elements.searchBtn.addEventListener("click", () => {
+  searchAgents().catch((error) => {
+    elements.searchStatus.textContent = error.message;
+  });
 });
 
-searchInput.addEventListener("keydown", (event) => {
+elements.searchInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
-    loadAgents(searchInput.value.trim()).catch((error) => console.error(error));
+    searchAgents().catch((error) => {
+      elements.searchStatus.textContent = error.message;
+    });
   }
 });
 
-refreshAll();
+elements.verifyAgentBtn.addEventListener("click", async () => {
+  if (!selectedAgent) {
+    return;
+  }
+  try {
+    const payload = await api(`/api/v1/verify/${encodeURIComponent(selectedAgent.id)}`);
+    elements.verifyOutput.textContent = JSON.stringify(payload, null, 2);
+  } catch (error) {
+    elements.verifyOutput.textContent = `Verification failed: ${error.message}`;
+  }
+});
+
+elements.downloadReportBtn.addEventListener("click", () => {
+  if (!selectedAgent) {
+    return;
+  }
+  window.open(`/api/v1/report/${encodeURIComponent(selectedAgent.id)}.pdf`, "_blank");
+});
+
+elements.auditNowBtn.addEventListener("click", async () => {
+  try {
+    await api("/api/v1/audit/run", { method: "POST" });
+    await refreshTickerAndBoard();
+    if (selectedAgent) {
+      await loadAgent(selectedAgent.id);
+    }
+  } catch (error) {
+    elements.verifyOutput.textContent = `Audit run failed: ${error.message}`;
+  }
+});
+
+async function init() {
+  await Promise.all([searchAgents(), refreshTickerAndBoard()]);
+}
+
 setInterval(() => {
-  loadEvents().catch((error) => console.error(error));
-}, 4000);
-setInterval(smoothAutoScroll, 60);
+  refreshTickerAndBoard().catch(() => {
+    // Intentionally silent in passive refresh loop.
+  });
+}, 10_000);
+
+init().catch((error) => {
+  elements.searchStatus.textContent = `Bootstrap error: ${error.message}`;
+});

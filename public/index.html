@@ -3,66 +3,70 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>S&A Ratings | Institutional Rating Portal</title>
+    <title>S&A Ratings | Sovereign Registry</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <main class="portal">
-      <header class="masthead">
-        <p class="kicker">INSTITUTIONAL RATING PORTAL</p>
-        <h1>S&amp;A Ratings</h1>
-        <p class="subtitle">Standard &amp; Agentic Ratings</p>
+    <main class="layout">
+      <header class="panel header-panel">
+        <div>
+          <p class="eyebrow">DELUTHIUM SOVEREIGN RATING AUTHORITY</p>
+          <h1>S&A RATINGS REGISTRY</h1>
+          <p class="sub">The machine does not lie. Deluthium does not forget.</p>
+        </div>
+        <button id="audit-now" class="btn">FORCE AUDIT CYCLE</button>
       </header>
 
-      <section class="search-panel">
-        <label for="agent-search">AGENT ID REGISTRY SEARCH</label>
-        <div class="search-row">
-          <input
-            id="agent-search"
-            name="agent-search"
-            type="search"
-            placeholder="Search by Agent ID or desk name..."
-            autocomplete="off"
-          />
-          <button id="search-btn" type="button">SEARCH</button>
+      <section class="panel ticker-panel">
+        <p class="eyebrow">JUDGMENT FEED</p>
+        <div class="ticker-wrap">
+          <div id="ticker" class="ticker-track"></div>
         </div>
       </section>
 
-      <section class="registry" aria-labelledby="registry-title">
-        <div class="section-title-row">
-          <h2 id="registry-title">THE REGISTRY</h2>
-          <span id="registry-count">0 entries</span>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Agent ID</th>
-                <th>Desk Name</th>
-                <th>Reliability Score</th>
-                <th>Rating</th>
-                <th>Last Action</th>
-              </tr>
-            </thead>
-            <tbody id="registry-body"></tbody>
-          </table>
-        </div>
-        <p id="registry-empty" class="empty hidden">
-          No registry records match this query.
-        </p>
+      <section class="grid">
+        <section class="panel left-column">
+          <div class="search-row">
+            <input id="search-input" placeholder="Search by Agent_ID / Wallet_Address / Name" />
+            <button id="search-btn" class="btn">RETRIEVE FILE</button>
+          </div>
+          <p id="search-status" class="status">Awaiting query.</p>
+          <div id="agent-list" class="agent-list"></div>
+        </section>
+
+        <section class="panel right-column">
+          <p class="eyebrow">SOVEREIGN SCORECARD</p>
+          <article id="scorecard" class="scorecard empty">No case selected.</article>
+          <div class="scorecard-actions">
+            <button id="download-report" class="btn" disabled>GENERATE INSTITUTIONAL REPORT</button>
+            <button id="verify-agent" class="btn" disabled>VERIFY FOR ASDAQ</button>
+          </div>
+          <pre id="verify-output" class="verify-output"></pre>
+        </section>
       </section>
 
-      <section class="feed" aria-labelledby="feed-title">
-        <div class="section-title-row">
-          <h2 id="feed-title">RECENT RATING ACTIONS</h2>
-          <span id="feed-last-updated">sync pending</span>
-        </div>
-        <div class="feed-scroll">
-          <ul id="feed-list"></ul>
-        </div>
+      <section class="panel">
+        <p class="eyebrow">TOP OF HIERARCHY</p>
+        <table class="leaderboard">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Agent</th>
+              <th>Grade</th>
+              <th>Fee Multiplier</th>
+              <th>Score</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboard-body"></tbody>
+        </table>
       </section>
     </main>
-
     <script src="/app.js"></script>
   </body>
 </html>

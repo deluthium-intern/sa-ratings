@@ -1,17 +1,25 @@
 {
   "name": "sa-ratings-portal",
   "version": "1.0.0",
-  "main": "server/index.js",
+  "description": "S&A Ratings sovereign credit standard portal",
+  "main": "src/index.js",
   "scripts": {
-    "start": "node server/index.js",
-    "dev": "node --watch server/index.js",
-    "test": "echo \"No tests configured\""
+    "start": "node src/index.js",
+    "dev": "NODE_ENV=development node src/index.js",
+    "db:migrate": "node scripts/migrate.js",
+    "db:seed": "node scripts/seed.js",
+    "test": "node --test"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "Institutional Rating Portal for S&A Ratings",
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
-    "express": "^5.2.1"
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "node-cron": "^3.0.3",
+    "pdfkit": "^0.15.1",
+    "pg": "^8.13.1",
+    "uuid": "^11.0.3"
   }
 }
